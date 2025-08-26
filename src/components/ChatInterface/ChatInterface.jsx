@@ -3,9 +3,20 @@ import './ChatInterface.css';
 import freeHealthAPIs from './FreeHealthAPIs.js';
 import geminiAPIService from './GeminiAPIService.js';
 import ShinyText from '../ShinyText.jsx';
-import ProfileEditModal from '../Dashboard/ProfileEditModal'; // Importing the ProfileEditModal
+import ProfileEditModal from '../Dashboard/ProfileEditModal';
 
-// TypewriterText component for animated text display
+
+// Shared formatter for rendering markdown-like text safely via dangerouslySetInnerHTML
+const formatMessage = (text) => {
+  const formattedText = text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/- (.*)/g, '<div class="message-bullet"><span class="bullet-point">•</span><span class="bullet-content">$1</span></div>')
+    .replace(/\n/g, '<br>');
+
+  return { __html: formattedText };
+};
+
 const TypewriterText = ({ text, speed = 30, onComplete, onCopy }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -25,23 +36,12 @@ const TypewriterText = ({ text, speed = 30, onComplete, onCopy }) => {
     }
   }, [currentIndex, text, speed, isComplete, onComplete]);
 
-  // Reset when text changes
+
   useEffect(() => {
     setDisplayedText('');
     setCurrentIndex(0);
     setIsComplete(false);
   }, [text]);
-
-  const formatMessage = (text) => {
-    // Simple markdown-like formatting
-    const formattedText = text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/- (.*)/g, '<div class="message-bullet"><span class="bullet-point">•</span><span class="bullet-content">$1</span></div>')
-      .replace(/\n/g, '<br>');
-
-    return { __html: formattedText };
-  };
 
   return (
     <div className="message-content-wrapper">
@@ -65,7 +65,7 @@ const TypewriterText = ({ text, speed = 30, onComplete, onCopy }) => {
   );
 };
 
-// Message Actions Component
+
 const MessageActions = ({ messageId, text, onReadAloud, onSave, isSpeaking }) => {
   return (
     <div className="message-actions">
@@ -84,13 +84,12 @@ const MessageActions = ({ messageId, text, onReadAloud, onSave, isSpeaking }) =>
           </svg>
         )}
       </button>
-      {/* Only keep the copy button elsewhere in the output, not the save button */}
     </div>
   );
 };
 
 const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, onLogout }) => {
-  const [profileImage, setProfileImage] = useState('/3.jpg'); // Default profile image
+  const [profileImage, setProfileImage] = useState('/3.jpg');
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -98,33 +97,26 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
   const [uploadedFile, setUploadedFile] = useState(null);
   const [questionCount, setQuestionCount] = useState(0);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [userFeedback, setUserFeedback] = useState({});
-  const [typingMessages, setTypingMessages] = useState(new Set());
   const [copiedMessageId, setCopiedMessageId] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [hasShownPopup, setHasShownPopup] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
 
   const [hasShownLoginPrompt, setHasShownLoginPrompt] = useState(false);
   const [isGeneratingResponse, setIsGeneratingResponse] = useState(false);
-  const [messageActions, setMessageActions] = useState({});
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState(null);
-  const [completedMessages, setCompletedMessages] = useState(new Set());
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false); // Profile dropdown state
-  const [showProfileEditModal, setShowProfileEditModal] = useState(false); // State for modal visibility
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showProfileEditModal, setShowProfileEditModal] = useState(false);
   const [user, setUser] = useState({
     name: 'User Name',
     email: 'user@example.com'
-  }); // User state
+  });
   const messagesEndRef = useRef(null);
 
   const handleDeleteHistory = () => {
-    setMessages([]); // Clear the messages state
-    localStorage.removeItem('chat_history'); // Clear chat history from local storage
+    setMessages([]);
+          localStorage.removeItem('chat_history');
   };
 
   const handleNameChange = (newName) => {
@@ -136,7 +128,7 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
   };
   const recognitionRef = useRef(null);
 
-  // Callback function for profile image updates
+
   const handleImageChange = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -148,11 +140,10 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
     }
   };
 
-
   const t = {
     title: 'AI Health Assistant',
     subtitle: 'Ask me anything about your health',
-    placeholder: 'Describe your symptoms or ask a health question...',
+    placeholder: 'Describe your symptoms or ask a health question...', 
     newChat: 'New Chat',
     welcome: "Hi! I am Medikami, your health assistant. How can I help you today?"
   };
@@ -165,69 +156,30 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
     scrollToBottom();
   }, [messages]);
 
-  // Reset profile image when user logs out
   useEffect(() => {
     if (!isAuthenticated) {
-      setProfileImage('/3.jpg'); // Reset to default profile image
+              setProfileImage('/3.jpg');
     }
   }, [isAuthenticated]);
 
-  // Search functionality
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
+  
 
-    setIsSearching(true);
-    
-    try {
-      // Search through existing messages
-      const filteredMessages = messages.filter(message => 
-        message.text.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        message.sender === 'bot'
-      );
-      
-      setSearchResults(filteredMessages);
-      
-      // If no results in existing messages, you could search external APIs here
-      if (filteredMessages.length === 0) {
-        // You could implement external search here
-        console.log('No existing messages found, could search external APIs');
-      }
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
 
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (searchQuery) {
-        handleSearch();
-      } else {
-        setSearchResults([]);
-      }
-    }, 300);
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
 
-  // Copy to clipboard function
+
   const handleCopy = async (text, messageId) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedMessageId(messageId);
       
-      // Reset copied state after 2 seconds
+      
       setTimeout(() => {
         setCopiedMessageId(null);
       }, 2000);
     } catch (err) {
       console.error('Failed to copy text: ', err);
-      // Fallback for older browsers
+      
       const textArea = document.createElement('textarea');
       textArea.value = text;
       document.body.appendChild(textArea);
@@ -243,7 +195,7 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
   };
 
   useEffect(() => {
-    // Show welcome message on start
+  
     if (messages.length === 0) {
       setMessages([
         {
@@ -260,13 +212,13 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
       if (success) {
         console.log('✅ Gemini API initialized successfully in ChatInterface');
       } else {
-        console.warn('⚠️ Gemini API initialization failed, will use fallback');
+
       }
     } catch (error) {
       console.error('❌ Failed to initialize Gemini API:', error);
     }
 
-    // Initialize speech recognition
+  
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
@@ -345,7 +297,7 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
     setQuestionCount(0);
   };
 
-  // Profile dropdown functions
+
   const toggleProfileDropdown = () => {
     setShowProfileDropdown(!showProfileDropdown);
   };
@@ -361,21 +313,18 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
 
 
   const handleChatHistory = () => {
-    console.log('Open chat history');
     setShowProfileDropdown(false);
   };
 
   const handleHelp = () => {
-    console.log('Open help');
     setShowProfileDropdown(false);
   };
 
   const handleSettings = () => {
-    console.log('Open settings');
     setShowProfileDropdown(false);
   };
 
-  // Popup functions
+
   const showMedikamiPopup = () => {
     setShowPopup(true);
   };
@@ -384,7 +333,7 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
     setShowPopup(false);
   };
 
-  // Emergency modal handlers
+
   const openEmergencyModal = () => {
     setShowEmergencyModal(true);
   };
@@ -393,42 +342,11 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
     setShowEmergencyModal(false);
   };
 
-  // User feedback functions
-  const handleFeedback = (messageId, isHelpful) => {
-    setUserFeedback(prev => ({
-      ...prev,
-      [messageId]: isHelpful
-    }));
-    
-    // Here you would send feedback to your backend
-    console.log(`Feedback for ${messageId}: ${isHelpful ? 'Helpful' : 'Not Helpful'}`);
-    
-    // For overall feedback, don't auto-hide
-    if (messageId !== 'overall') {
-      // Hide confirmation message after 2 seconds for individual message feedback
-      setTimeout(() => {
-        setUserFeedback(prev => {
-          const newFeedback = { ...prev };
-          delete newFeedback[messageId];
-          return newFeedback;
-        });
-      }, 2000);
-    }
-  };
 
-  const handleCopyMessage = async (messageId, text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedMessageId(messageId);
-      setTimeout(() => setCopiedMessageId(null), 2000);
-    } catch (error) {
-      console.error('Failed to copy:', error);
-    }
-  };
 
   const handleReadAloud = (messageId, text) => {
     if ('speechSynthesis' in window) {
-      // If already speaking this message, stop it
+      
       if (isSpeaking && speakingMessageId === messageId) {
         speechSynthesis.cancel();
         setIsSpeaking(false);
@@ -436,12 +354,12 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
         return;
       }
       
-      // If speaking another message, stop it first
+      
       if (isSpeaking) {
         speechSynthesis.cancel();
       }
       
-      // Start speaking the new message
+     
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 0.9;
       utterance.pitch = 1;
@@ -464,24 +382,10 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
     }
   };
 
-  const handleRegenerate = async (messageId) => {
-    // Find the user message that triggered this response
-    const messageIndex = messages.findIndex(msg => msg.id === messageId);
-    if (messageIndex > 0) {
-      const userMessage = messages[messageIndex - 1];
-      if (userMessage.sender === 'user') {
-        // Remove the current bot response
-        setMessages(prev => prev.filter(msg => msg.id !== messageId));
-        // Regenerate response
-        setInputValue(userMessage.text);
-        setTimeout(() => handleSendMessage(), 100);
-      }
-    }
-  };
+
 
   const handleSaveToLibrary = (messageId, text) => {
-    // For now, just show a success message
-    // In a real app, you'd save to user's library
+    
     console.log('Message saved to library:', messageId);
   };
 
@@ -512,7 +416,7 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
     setIsTyping(true);
     setIsGeneratingResponse(true);
     
-    // Check question limit after adding user message
+    
     setTimeout(() => {
       checkQuestionLimit();
     }, 100);
@@ -520,19 +424,19 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
     try {
       let aiResponse;
 
-      // Always try to use Gemini API first, then fallback to free APIs if it fails
+      
       try {
         if (geminiAPIService.isReady()) {
           aiResponse = await geminiAPIService.getHealthAdvice(inputValue, healthData);
         } else {
-          // Fallback to free health APIs if Gemini isn't ready
-          console.warn('Gemini API not ready, falling back to free APIs.');
-          // Fallback to free health APIs
+          
+
+          
           aiResponse = await freeHealthAPIs.getHealthAdvice(inputValue);
         }
       } catch (error) {
         console.error('Gemini API error, falling back to free APIs:', error);
-        // Fallback to free health APIs on error
+        
         aiResponse = await freeHealthAPIs.getHealthAdvice(inputValue);
       }
 
@@ -545,7 +449,6 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
       };
       
       setMessages(prev => [...prev, botMessage]);
-      setTypingMessages(prev => new Set([...prev, botMessage.id]));
     } catch (error) {
       console.error('Error getting AI response:', error);
       const errorMessage = {
@@ -556,36 +459,24 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
         isTyping: true
       };
       setMessages(prev => [...prev, errorMessage]);
-      setTypingMessages(prev => new Set([...prev, errorMessage.id]));
     } finally {
       setIsTyping(false);
       setIsGeneratingResponse(false);
       
-      // Show popup after first question (when we have 2 messages: welcome + user question + bot response)
+      
       if (messages.length === 2 && !hasShownPopup) {
         setTimeout(() => {
           showMedikamiPopup();
           setHasShownPopup(true);
-        }, 1000); // Show after 1 second
+        }, 1000); 
       }
     }
   };
 
   const handleTypingComplete = (messageId) => {
-    setTypingMessages(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(messageId);
-      return newSet;
-    });
-    
     setMessages(prev => prev.map(msg => 
       msg.id === messageId ? { ...msg, isTyping: false } : msg
     ));
-    
-    // Mark message as completed after typing is done
-    setTimeout(() => {
-      setCompletedMessages(prev => new Set([...prev, messageId]));
-    }, 500); // Small delay to ensure typing animation is complete
   };
 
   const handleKeyPress = (e) => {
@@ -605,17 +496,6 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
         isTyping: false
       }
     ]);
-  };
-
-  const formatMessage = (text) => {
-    // Simple markdown-like formatting
-    const formattedText = text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/- (.*)/g, '<div class="message-bullet"><span class="bullet-point">•</span><span class="bullet-content">$1</span></div>')
-      .replace(/\n/g, '<br>');
-
-    return { __html: formattedText };
   };
 
   const quickActions = [
@@ -719,19 +599,15 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
       setIsTyping(false);
     }
   };
-
-  // Helper function to extract numeric values from text
   const extractValues = (text, keywords) => {
     const values = [];
-    keywords.forEach(keyword => {
-      // More flexible regex to catch various formats
+    keywords.forEach(keyword => {  
       const regex = new RegExp(`${keyword}\\s*[:=]?\\s*(\\d+(?:\\.\\d+)?)\\s*(\\w+)?\\s*(?:mg/dl|mg/dL|mg/dl|mmol/l|mmol/L|ng/ml|ng/mL|pg/ml|pg/mL|u/l|U/L|mIU/L|mmHg|%|kg|lbs|cm|inches)?`, 'gi');
       let match;
       while ((match = regex.exec(text)) !== null) {
-        // Extract unit from the match or use common units
+        
         let unit = match[2] || '';
-        if (!unit) {
-          // Try to extract unit from the full match
+        if (!unit) { 
           const unitMatch = match[0].match(/(mg\/dl|mg\/dL|mmol\/l|mmol\/L|ng\/ml|ng\/mL|pg\/ml|pg\/mL|u\/l|U\/L|mIU\/L|mmHg|%|kg|lbs|cm|inches)/i);
           unit = unitMatch ? unitMatch[1] : '';
         }
@@ -746,8 +622,6 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
     });
     return values;
   };
-
-  // Helper function to interpret medical values
   const interpretValue = (value, unit, testType) => {
     const ranges = {
       glucose: { normal: [70, 100], unit: 'mg/dL', condition: 'diabetes' },
@@ -766,7 +640,6 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
       alt: { normal: [7, 55], unit: 'U/L', condition: 'liver function' },
       ast: { normal: [8, 48], unit: 'U/L', condition: 'liver function' },
       tsh: { normal: [0.4, 4.0], unit: 'mIU/L', condition: 'thyroid function' },
-      // Additional test ranges
       bun: { normal: [7, 20], unit: 'mg/dL', condition: 'kidney function' },
       egfr: { normal: [90, 120], unit: 'mL/min/1.73m²', condition: 'kidney function' },
       bilirubin: { normal: [0.3, 1.2], unit: 'mg/dL', condition: 'liver function' },
@@ -798,7 +671,6 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
   };
 
   const analyzeMedicalReport = async (file, fileContent) => {
-    // Try to use Gemini API first for medical report analysis
     try {
       if (geminiAPIService.isReady()) {
         return await geminiAPIService.analyzeMedicalReport(fileContent, file.name);
@@ -807,10 +679,8 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
       console.error('Gemini API error for medical report analysis:', error);
     }
 
-    // Fallback to manual analysis if Gemini fails
     const content = fileContent.toLowerCase();
     
-    // Extract and analyze medical values
     const medicalValues = {
       glucose: extractValues(content, ['glucose', 'blood sugar', 'fasting glucose', 'random glucose']),
       hba1c: extractValues(content, ['hba1c', 'a1c', 'glycated hemoglobin']),
@@ -831,7 +701,6 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
       bmi: extractValues(content, ['bmi', 'body mass index']),
       weight: extractValues(content, ['weight', 'body weight', 'kg', 'lbs']),
       height: extractValues(content, ['height', 'body height', 'cm', 'inches']),
-      // Additional tests
       bun: extractValues(content, ['bun', 'blood urea nitrogen', 'urea nitrogen']),
       egfr: extractValues(content, ['egfr', 'gfr', 'estimated glomerular filtration rate']),
       bilirubin: extractValues(content, ['bilirubin', 'total bilirubin']),
@@ -850,7 +719,6 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
       oxygenSaturation: extractValues(content, ['oxygen saturation', 'o2 sat', 'spo2'])
     };
 
-    // Analyze each value and determine conditions
     const analysis = {};
     const detectedConditions = [];
     const abnormalValues = [];
@@ -884,134 +752,47 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
       }
     });
 
-    // If no specific conditions detected, provide general analysis
     if (detectedConditions.length === 0) {
       detectedConditions.push('general health');
     }
-    
-    // Generate value-specific dietary recommendations
     const generateValueSpecificDiet = (testType, value, status) => {
       const diets = {
         glucose: {
-          high: [
-            '🍎 **Low Glycemic Index Foods**: Choose whole grains, legumes, and non-starchy vegetables',
-            '🥗 **High Fiber Diet**: Include 25-30g of fiber daily from vegetables, fruits, and whole grains',
-            '🐟 **Lean Proteins**: Fish, chicken, tofu, and legumes (2-3 servings daily)',
-            '🚫 **Avoid**: Refined sugars, white bread, sugary beverages, processed foods',
-            '⏰ **Meal Timing**: Eat at regular intervals, don\'t skip meals',
-            '💧 **Hydration**: Drink 8-10 glasses of water daily'
-          ],
-          low: [
-            '🍯 **Complex Carbohydrates**: Whole grains, sweet potatoes, quinoa',
-            '🥛 **Protein-Rich Foods**: Greek yogurt, eggs, lean meats',
-            '🥜 **Healthy Fats**: Nuts, seeds, avocado',
-            '⏰ **Frequent Small Meals**: Eat every 2-3 hours',
-            '🚫 **Avoid**: Skipping meals, excessive alcohol'
-          ]
+          high: ['🍎 **Low Glycemic Index Foods**: Whole grains, legumes, vegetables', '🥗 **High Fiber Diet**: 25-30g daily', '🐟 **Lean Proteins**: Fish, chicken, legumes', '🚫 **Avoid**: Refined sugars, white bread, sugary beverages'],
+          low: ['🍯 **Complex Carbohydrates**: Whole grains, sweet potatoes, quinoa', '🥛 **Protein-Rich Foods**: Greek yogurt, eggs, lean meats', '⏰ **Frequent Small Meals**: Eat every 2-3 hours', '🚫 **Avoid**: Skipping meals, excessive alcohol']
         },
         hba1c: {
-          high: [
-            '🍎 **Low Glycemic Index Foods**: Choose whole grains, legumes, and non-starchy vegetables',
-            '🥗 **High Fiber Diet**: Include 25-30g of fiber daily from vegetables, fruits, and whole grains',
-            '🐟 **Lean Proteins**: Fish, chicken, tofu, and legumes (2-3 servings daily)',
-            '🚫 **Avoid**: Refined sugars, white bread, sugary beverages, processed foods',
-            '⏰ **Meal Timing**: Eat at regular intervals, don\'t skip meals',
-            '💧 **Hydration**: Drink 8-10 glasses of water daily'
-          ]
+          high: ['🍎 **Low Glycemic Index Foods**: Whole grains, legumes, vegetables', '🥗 **High Fiber Diet**: 25-30g daily', '🐟 **Lean Proteins**: Fish, chicken, legumes', '🚫 **Avoid**: Refined sugars, white bread, sugary beverages']
         },
         cholesterol: {
-          high: [
-            '🌾 **Soluble Fiber**: Oats, barley, beans, apples (10-25g daily)',
-            '🥜 **Plant Sterols**: Fortified margarines, nuts, seeds',
-            '🐟 **Omega-3 Rich Fish**: Salmon, mackerel, sardines (2-3 servings/week)',
-            '🥑 **Monounsaturated Fats**: Olive oil, avocados, nuts',
-            '🚫 **Avoid**: Trans fats, saturated fats, fried foods, processed meats',
-            '🥛 **Choose**: Low-fat dairy products over full-fat versions'
-          ]
+          high: ['🌾 **Soluble Fiber**: Oats, barley, beans, apples (10-25g daily)', '🐟 **Omega-3 Rich Fish**: Salmon, mackerel, sardines', '🥑 **Monounsaturated Fats**: Olive oil, avocados, nuts', '🚫 **Avoid**: Trans fats, saturated fats, fried foods']
         },
         hdl: {
-          low: [
-            '🐟 **Omega-3 Fatty Acids**: Fatty fish, walnuts, flaxseeds',
-            '🥜 **Monounsaturated Fats**: Olive oil, avocados, nuts',
-            '🏃‍♂️ **Exercise**: Regular cardio exercise to raise HDL',
-            '🚫 **Avoid**: Trans fats, excessive alcohol',
-            '🥛 **Choose**: Healthy fats over processed foods'
-          ]
+          low: ['🐟 **Omega-3 Fatty Acids**: Fatty fish, walnuts, flaxseeds', '🥜 **Monounsaturated Fats**: Olive oil, avocados, nuts', '🏃‍♂️ **Exercise**: Regular cardio exercise to raise HDL', '🚫 **Avoid**: Trans fats, excessive alcohol']
         },
         ldl: {
-          high: [
-            '🌾 **Soluble Fiber**: Oats, barley, beans, apples (10-25g daily)',
-            '🥜 **Plant Sterols**: Fortified margarines, nuts, seeds',
-            '🐟 **Omega-3 Rich Fish**: Salmon, mackerel, sardines (2-3 servings/week)',
-            '🚫 **Avoid**: Trans fats, saturated fats, fried foods, processed meats',
-            '🥛 **Choose**: Low-fat dairy products over full-fat versions'
-          ]
+          high: ['🌾 **Soluble Fiber**: Oats, barley, beans, apples (10-25g daily)', '🐟 **Omega-3 Rich Fish**: Salmon, mackerel, sardines', '🚫 **Avoid**: Trans fats, saturated fats, fried foods']
         },
         triglycerides: {
-          high: [
-            '🚫 **Limit Simple Sugars**: Avoid sugary drinks, candies, desserts',
-            '🌾 **Choose Complex Carbs**: Whole grains, legumes, vegetables',
-            '🐟 **Omega-3 Fatty Acids**: Fatty fish, walnuts, flaxseeds',
-            '🏃‍♂️ **Exercise**: Regular cardio exercise to lower triglycerides',
-            '🚫 **Avoid**: Alcohol, refined carbohydrates'
-          ]
+          high: ['🚫 **Limit Simple Sugars**: Avoid sugary drinks, candies, desserts', '🌾 **Choose Complex Carbs**: Whole grains, legumes, vegetables', '🐟 **Omega-3 Fatty Acids**: Fatty fish, walnuts, flaxseeds', '🏃‍♂️ **Exercise**: Regular cardio exercise to lower triglycerides']
         },
         systolic: {
-          high: [
-            '🧂 **Low Sodium Diet**: Limit salt to 1,500-2,300mg daily',
-            '🥬 **DASH Diet**: Rich in fruits, vegetables, and low-fat dairy',
-            '🍌 **Potassium-Rich Foods**: Bananas, spinach, sweet potatoes, yogurt',
-            '🥜 **Magnesium Sources**: Nuts, seeds, whole grains, dark chocolate',
-            '🚫 **Avoid**: Processed foods, canned soups, deli meats, salty snacks',
-            '☕ **Limit**: Caffeine and alcohol consumption'
-          ]
+          high: ['🧂 **Low Sodium Diet**: Limit salt to 1,500-2,300mg daily', '🥬 **DASH Diet**: Fruits, vegetables, low-fat dairy', '🍌 **Potassium-Rich Foods**: Bananas, spinach, sweet potatoes', '🚫 **Avoid**: Processed foods, salty snacks']
         },
         diastolic: {
-          high: [
-            '🧂 **Low Sodium Diet**: Limit salt to 1,500-2,300mg daily',
-            '🥬 **DASH Diet**: Rich in fruits, vegetables, and low-fat dairy',
-            '🍌 **Potassium-Rich Foods**: Bananas, spinach, sweet potatoes, yogurt',
-            '🥜 **Magnesium Sources**: Nuts, seeds, whole grains, dark chocolate',
-            '🚫 **Avoid**: Processed foods, canned soups, deli meats, salty snacks',
-            '☕ **Limit**: Caffeine and alcohol consumption'
-          ]
+          high: ['🧂 **Low Sodium Diet**: Limit salt to 1,500-2,300mg daily', '🥬 **DASH Diet**: Fruits, vegetables, low-fat dairy', '🍌 **Potassium-Rich Foods**: Bananas, spinach, sweet potatoes', '🚫 **Avoid**: Processed foods, salty snacks']
         },
         hemoglobin: {
-          low: [
-            '🥩 **Heme Iron Sources**: Red meat, poultry, fish (2-3 servings weekly)',
-            '🥬 **Non-Heme Iron**: Spinach, lentils, beans, fortified cereals',
-            '🍊 **Vitamin C**: Citrus fruits, bell peppers (enhances iron absorption)',
-            '🥜 **Plant-Based Iron**: Pumpkin seeds, quinoa, dark chocolate',
-            '🚫 **Avoid**: Coffee/tea with meals (inhibits iron absorption)',
-            '💊 **Consider**: Iron supplements as recommended by your doctor'
-          ]
+          low: ['🥩 **Heme Iron Sources**: Red meat, poultry, fish (2-3 servings weekly)', '🥬 **Non-Heme Iron**: Spinach, lentils, beans, fortified cereals', '🍊 **Vitamin C**: Citrus fruits, bell peppers (enhances iron absorption)', '🚫 **Avoid**: Coffee/tea with meals (inhibits iron absorption)']
         },
         ferritin: {
-          low: [
-            '🥩 **Heme Iron Sources**: Red meat, poultry, fish (2-3 servings weekly)',
-            '🥬 **Non-Heme Iron**: Spinach, lentils, beans, fortified cereals',
-            '🍊 **Vitamin C**: Citrus fruits, bell peppers (enhances iron absorption)',
-            '🥜 **Plant-Based Iron**: Pumpkin seeds, quinoa, dark chocolate',
-            '🚫 **Avoid**: Coffee/tea with meals (inhibits iron absorption)',
-            '💊 **Consider**: Iron supplements as recommended by your doctor'
-          ]
+          low: ['🥩 **Heme Iron Sources**: Red meat, poultry, fish (2-3 servings weekly)', '🥬 **Non-Heme Iron**: Spinach, lentils, beans, fortified cereals', '🍊 **Vitamin C**: Citrus fruits, bell peppers (enhances iron absorption)', '🚫 **Avoid**: Coffee/tea with meals (inhibits iron absorption)']
         },
         vitaminD: {
-          low: [
-            '🌞 **Vitamin D Foods**: Fatty fish, egg yolks, fortified dairy',
-            '☀️ **Sunlight Exposure**: 10-30 minutes daily (with sunscreen)',
-            '🥛 **Fortified Foods**: Milk, orange juice, cereals',
-            '💊 **Consider**: Vitamin D supplements as recommended',
-            '🏃‍♂️ **Exercise**: Regular outdoor activity'
-          ]
+          low: ['🌞 **Vitamin D Foods**: Fatty fish, egg yolks, fortified dairy', '☀️ **Sunlight Exposure**: 10-30 minutes daily (with sunscreen)', '🥛 **Fortified Foods**: Milk, orange juice, cereals', '💊 **Consider**: Vitamin D supplements as recommended']
         },
         vitaminB12: {
-          low: [
-            '🥩 **Animal Sources**: Meat, fish, dairy, eggs',
-            '🥛 **Fortified Foods**: Plant milks, cereals, nutritional yeast',
-            '💊 **Consider**: B12 supplements or injections',
-            '🏥 **Medical Evaluation**: Check for absorption issues'
-          ]
+          low: ['🥩 **Animal Sources**: Meat, fish, dairy, eggs', '🥛 **Fortified Foods**: Plant milks, cereals, nutritional yeast', '💊 **Consider**: B12 supplements or injections', '🏥 **Medical Evaluation**: Check for absorption issues']
         }
       };
 
@@ -1059,29 +840,24 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
         description: '🔬 **Medical Report Analysis: High Blood Pressure Detected**\n\nYour medical report indicates high blood pressure. Here\'s comprehensive management advice:',
         diet: [
           '🧂 **Low Sodium Diet**: Limit salt to 1,500-2,300mg daily',
-          '🥬 **DASH Diet**: Rich in fruits, vegetables, and low-fat dairy',
-          '🍌 **Potassium-Rich Foods**: Bananas, spinach, sweet potatoes, yogurt',
-          '🥜 **Magnesium Sources**: Nuts, seeds, whole grains, dark chocolate',
+          '🥬 **DASH Diet**: Fruits, vegetables, low-fat dairy',
+          '🍌 **Potassium-Rich Foods**: Bananas, spinach, sweet potatoes',
           '🐟 **Omega-3 Fatty Acids**: Fatty fish 2-3 times per week',
-          '🚫 **Avoid**: Processed foods, canned soups, deli meats, salty snacks',
-          '☕ **Limit**: Caffeine and alcohol consumption'
+          '🚫 **Avoid**: Processed foods, salty snacks'
         ],
         medications: [
-          '💊 **Prescription Medications**: ACE inhibitors, ARBs, Calcium channel blockers (as prescribed)',
-          '💊 **Diuretics**: For fluid retention management',
-          '💊 **Beta-blockers**: For heart rate control'
+          '💊 **Prescription Medications**: As prescribed by your doctor',
+          '📊 **Regular Monitoring**: Blood pressure checks as recommended'
         ],
         lifestyle: [
           '🏃‍♂️ **Exercise**: 150 minutes moderate exercise weekly',
           '🧘‍♀️ **Stress Reduction**: Meditation, deep breathing, yoga',
-          '🚭 **Quit Smoking**: Essential for blood pressure control',
-          '⚖️ **Weight Management**: Maintain healthy BMI'
+          '🚭 **Quit Smoking**: Essential for blood pressure control'
         ],
         warningSigns: [
           '🚨 **Blood pressure above 180/120**',
           '🚨 **Severe headache with high BP**',
-          '🚨 **Chest pain or shortness of breath**',
-          '🚨 **Vision changes or confusion**'
+          '🚨 **Chest pain or shortness of breath**'
         ]
       },
       'high cholesterol': {
@@ -1089,123 +865,26 @@ const ChatInterface = ({ healthData, isAuthenticated = false, onLoginRequest, on
         description: '🔬 **Medical Report Analysis: Elevated Cholesterol Detected**\n\nYour cholesterol levels are elevated. Here\'s comprehensive management advice:',
         diet: [
           '🌾 **Soluble Fiber**: Oats, barley, beans, apples (10-25g daily)',
-          '🥜 **Plant Sterols**: Fortified margarines, nuts, seeds',
           '🐟 **Omega-3 Rich Fish**: Salmon, mackerel, sardines (2-3 servings/week)',
           '🥑 **Monounsaturated Fats**: Olive oil, avocados, nuts',
-          '🍎 **Antioxidant-Rich Foods**: Berries, dark chocolate, green tea',
-          '🚫 **Avoid**: Trans fats, saturated fats, fried foods, processed meats',
-          '🥛 **Choose**: Low-fat dairy products over full-fat versions'
+          '🚫 **Avoid**: Trans fats, saturated fats, fried foods'
         ],
         medications: [
-          '💊 **Statins**: Atorvastatin, Simvastatin (as prescribed)',
-          '💊 **Other Medications**: Ezetimibe, PCSK9 inhibitors if needed',
+          '💊 **Prescription Medications**: As prescribed by your doctor',
           '📊 **Regular Monitoring**: Lipid panel every 3-6 months'
         ],
         lifestyle: [
           '🏃‍♂️ **Cardio Exercise**: 150 minutes weekly',
           '💪 **Strength Training**: 2-3 sessions weekly',
-          '🚭 **Quit Smoking**: Improves cholesterol profile',
-          '⚖️ **Weight Management**: Target healthy BMI'
+          '🚭 **Quit Smoking**: Improves cholesterol profile'
         ],
         warningSigns: [
           '🚨 **Chest pain or angina**',
           '🚨 **Shortness of breath**',
-          '🚨 **Pain in arms, neck, jaw**',
-          '🚨 **Dizziness or fainting**'
+          '🚨 **Pain in arms, neck, jaw**'
         ]
       },
-      obesity: {
-        condition: 'Obesity/Weight Management',
-        description: '🔬 **Medical Report Analysis: Weight Management Concerns Detected**\n\nYour medical report suggests weight management concerns. Here\'s comprehensive advice:',
-        diet: [
-          '🥗 **High Protein Diet**: Lean meats, fish, eggs, legumes (1.2-1.6g per kg body weight)',
-          '🥬 **High Volume, Low Calorie**: Vegetables, fruits, broth-based soups',
-          '🌾 **Complex Carbohydrates**: Whole grains, quinoa, brown rice (moderate portions)',
-          '🥜 **Healthy Fats**: Nuts, seeds, olive oil (in moderation)',
-          '🚫 **Avoid**: Sugary drinks, processed foods, large portions',
-          '⏰ **Intermittent Fasting**: Consider 16:8 or 14:10 fasting windows',
-          '💧 **Hydration**: Drink water before meals to reduce appetite'
-        ],
-        medications: [
-          '💊 **Prescription Weight Loss**: Orlistat, Phentermine (if prescribed)',
-          '💊 **GLP-1 Agonists**: Semaglutide, Liraglutide (if eligible)',
-          '📊 **Regular Monitoring**: Weight, BMI, waist circumference'
-        ],
-        lifestyle: [
-          '🏃‍♂️ **Cardio Exercise**: 150-300 minutes weekly',
-          '💪 **Strength Training**: 2-3 sessions weekly',
-          '🧘‍♀️ **Behavioral Therapy**: Consider weight loss programs',
-          '😴 **Sleep**: 7-9 hours for metabolism regulation'
-        ],
-        warningSigns: [
-          '🚨 **Severe shortness of breath**',
-          '🚨 **Chest pain during activity**',
-          '🚨 **Joint pain limiting mobility**',
-          '🚨 **Sleep apnea symptoms**'
-        ]
-      },
-      anemia: {
-        condition: 'Anemia (Iron Deficiency)',
-        description: '🔬 **Medical Report Analysis: Iron Deficiency Anemia Detected**\n\nYour blood work shows iron deficiency. Here\'s comprehensive management advice:',
-        diet: [
-          '🥩 **Heme Iron Sources**: Red meat, poultry, fish (2-3 servings weekly)',
-          '🥬 **Non-Heme Iron**: Spinach, lentils, beans, fortified cereals',
-          '🍊 **Vitamin C**: Citrus fruits, bell peppers (enhances iron absorption)',
-          '🥜 **Plant-Based Iron**: Pumpkin seeds, quinoa, dark chocolate',
-          '🚫 **Avoid**: Coffee/tea with meals (inhibits iron absorption)',
-          '💊 **Consider**: Iron supplements as recommended by your doctor',
-          '🥛 **Timing**: Take iron supplements on empty stomach for better absorption'
-        ],
-        medications: [
-          '💊 **Iron Supplements**: Ferrous sulfate 325mg 1-3 times daily',
-          '💊 **Vitamin B12**: 1000mcg daily (if B12 deficiency)',
-          '💊 **Folic Acid**: 400-800mcg daily',
-          '📊 **Regular Monitoring**: Complete blood count every 3 months'
-        ],
-        lifestyle: [
-          '😴 **Adequate Rest**: 7-9 hours sleep nightly',
-          '🏃‍♂️ **Moderate Exercise**: Avoid overexertion',
-          '🍳 **Cooking Methods**: Use cast iron pans',
-          '⏰ **Meal Timing**: Eat iron-rich foods with Vitamin C'
-        ],
-        warningSigns: [
-          '🚨 **Severe fatigue affecting daily activities**',
-          '🚨 **Chest pain or irregular heartbeat**',
-          '🚨 **Severe shortness of breath**',
-          '🚨 **Fainting or severe dizziness**'
-        ]
-      },
-      'vitamin deficiency': {
-        condition: 'Vitamin Deficiency',
-        description: '🔬 **Medical Report Analysis: Vitamin Deficiencies Detected**\n\nYour medical report indicates vitamin deficiencies. Here\'s comprehensive management advice:',
-        diet: [
-          '🌞 **Vitamin D**: Fatty fish, egg yolks, fortified dairy, sunlight exposure',
-          '🥬 **Vitamin B12**: Meat, fish, dairy, fortified cereals',
-          '🍊 **Vitamin C**: Citrus fruits, bell peppers, strawberries, broccoli',
-          '🥜 **Vitamin E**: Nuts, seeds, vegetable oils, leafy greens',
-          '🥛 **Calcium**: Dairy products, fortified plant milks, leafy greens',
-          '🚫 **Avoid**: Overcooking vegetables (destroys vitamins)',
-          '💊 **Consider**: Multivitamin supplements as needed'
-        ],
-        medications: [
-          '💊 **Vitamin D**: 1000-4000 IU daily (as prescribed)',
-          '💊 **Vitamin B12**: 1000mcg daily (if deficient)',
-          '💊 **Multivitamin**: Complete daily multivitamin',
-          '📊 **Regular Monitoring**: Vitamin levels every 6 months'
-        ],
-        lifestyle: [
-          '☀️ **Sunlight Exposure**: 10-30 minutes daily (Vitamin D)',
-          '🏃‍♂️ **Regular Exercise**: Improves vitamin absorption',
-          '😴 **Adequate Sleep**: 7-9 hours for vitamin metabolism',
-          '🚭 **Avoid Smoking**: Reduces vitamin absorption'
-        ],
-        warningSigns: [
-          '🚨 **Severe fatigue or weakness**',
-          '🚨 **Bone pain or fractures**',
-          '🚨 **Vision problems**',
-          '🚨 **Neurological symptoms**'
-        ]
-      }
+
     };
     
     // Generate personalized recommendations based on detected conditions and values
@@ -1398,19 +1077,11 @@ I've received your file: "${file.name}"
 • Medical report analysis and dietary recommendations
 • Health question answers
 • Lifestyle and nutrition advice
-• Exercise recommendations
 
 **💬 How to get the most from our conversation:**
 • Ask specific questions about your health concerns
 • Upload medical reports, lab results, or prescriptions
 • Request personalized diet plans
-• Ask about exercise recommendations
-
-**📋 Example questions you can ask:**
-• "What diet should I follow for diabetes?"
-• "How can I lower my cholesterol naturally?"
-• "What exercises are good for weight loss?"
-• "Can you analyze my blood work results?"
 
 Feel free to ask me any health-related questions, and I'll provide detailed, personalized recommendations!`;
   };
@@ -1514,9 +1185,9 @@ Feel free to ask me any health-related questions, and I'll provide detailed, per
               )}
               
               {message.sender === 'bot' ? (
-                // AI messages - no box, just plain text with AI profile
+              
                 <div className="message-content">
-                  {/* AI Profile/Logo */}
+
                   <div className="ai-profile">
                     <img src="/4.jpg" alt="Medikami AI" className="ai-logo" />
                   </div>
@@ -1537,8 +1208,8 @@ Feel free to ask me any health-related questions, and I'll provide detailed, per
                         />
                       </div>
                       
-                      {/* Message Actions for bot messages - only show after response is complete */}
-                      {message.sender === 'bot' && !message.isTyping && message.text && message.text.trim().length > 0 && completedMessages.has(message.id) && messages.some((msg, index) => msg.sender === 'user' && index < messages.findIndex(m => m.id === message.id)) && (
+    
+                      {message.sender === 'bot' && !message.isTyping && message.text && message.text.trim().length > 0 && messages.some((msg, index) => msg.sender === 'user' && index < messages.findIndex(m => m.id === message.id)) && (
                         <MessageActions
                           messageId={message.id}
                           text={message.text}
@@ -1553,7 +1224,7 @@ Feel free to ask me any health-related questions, and I'll provide detailed, per
                   <div className="message-time">{message.timestamp}</div>
                 </div>
               ) : (
-                // User messages - keep the chat bubble style
+                
                 <div className="message-content">
                   <div 
                     className="message-text"
@@ -1602,7 +1273,7 @@ Feel free to ask me any health-related questions, and I'll provide detailed, per
           </>
         )}
 
-        {/* Emergency Modal */}
+        
         {showEmergencyModal && (
           <>
             <div className="emergency-overlay" onClick={closeEmergencyModal}></div>
@@ -1629,7 +1300,7 @@ Feel free to ask me any health-related questions, and I'll provide detailed, per
           </>
         )}
 
-        {/* Medikami Popup Modal */}
+        
         {showPopup && (
           <>
             <div className="popup-overlay" onClick={closePopup}></div>
@@ -1724,7 +1395,7 @@ Feel free to ask me any health-related questions, and I'll provide detailed, per
         />
       </div>
 
-      {/* Profile Edit Modal */}
+      
       {showProfileEditModal && (
         <ProfileEditModal
           isOpen={showProfileEditModal}

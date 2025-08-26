@@ -13,18 +13,17 @@ const AuthModal = ({ onLogin, onSignup, onClose }) => {
   const [errors, setErrors] = useState({});
   const [animationStep, setAnimationStep] = useState(0);
 
-  // Typing animation effect
   useEffect(() => {
     const timer = setTimeout(() => {
       if (animationStep < 6) {
         setAnimationStep(prev => prev + 1);
       }
-    }, 300); // 300ms delay between each element
+    }, 300); 
 
     return () => clearTimeout(timer);
   }, [animationStep]);
 
-  // Reset animation when switching between login/signup
+  
   useEffect(() => {
     setAnimationStep(0);
   }, [isLogin]);
@@ -35,7 +34,7 @@ const AuthModal = ({ onLogin, onSignup, onClose }) => {
       ...prev,
       [name]: value
     }));
-    // Clear error when user starts typing
+    
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -80,10 +79,9 @@ const AuthModal = ({ onLogin, onSignup, onClose }) => {
         // Simulate login
         onLogin({
           email: formData.email,
-          name: formData.email.split('@')[0] // Use email prefix as name for demo
+          name: formData.email.split('@')[0] 
         });
       } else {
-        // Simulate signup
         onSignup({
           name: formData.name,
           email: formData.email
