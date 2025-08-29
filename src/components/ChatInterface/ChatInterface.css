@@ -829,16 +829,10 @@
   margin-bottom: 0.75rem;
   outline: none;
 }
-
 .login-btn-primary:focus {
   outline: none;
   border: 2px solid #000000;
 }
-
-
-
-
-
 .signup-btn {
   background: transparent;
   color: #6cee16;
@@ -853,7 +847,6 @@
   max-width: 300px;
   margin-bottom: 0.75rem;
 }
-
 .signup-btn:hover {
   background: #EAEAEA;
   color: #1a1a1a;

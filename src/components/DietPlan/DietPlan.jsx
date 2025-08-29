@@ -58,7 +58,6 @@ const DietPlan = ({ conditions }) => {
   const dietPlan = generateDietPlan(conditions);
 
   const handleDownload = () => {
-    // Simulate PDF download
     alert('PDF download feature will be implemented with backend integration');
   };
 
