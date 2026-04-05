@@ -1,5 +1,5 @@
 export const GEMINI_CONFIG = {
-  MODEL: 'gemini-1.5-flash',
+  MODEL: 'gemini-1.5-pro',
   MAX_TOKENS: 4096,
   TEMPERATURE: 0.7
 };
